@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuestionnaireController;
+use App\Http\Controllers\TestController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -17,3 +18,5 @@ use Inertia\Inertia;
 |
 */
 Route::get('/questionnaire/{uid}', [QuestionnaireController::class , 'index'])->name('questionnaire.index');
+
+Route::get('/test', [TestController::class , 'index'])->name('test');
