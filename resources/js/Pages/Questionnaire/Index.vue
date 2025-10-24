@@ -45,13 +45,21 @@ const next = () => {
     }, 200);
   } else {
     console.log("回答結果:", form.value);
-    // より良い完了表示
+    axios.post(route('questionnaire.store'), form.value)
+    .then(res => {
+      console.log(res.data)
+    })
+    .catch(error => {
+      console.log(error)
+    });
+
     showCompletionMessage();
   }
 };
 
 const showCompletionMessage = () => {
   showCompletionPopup.value = true;
+
 
 };
 

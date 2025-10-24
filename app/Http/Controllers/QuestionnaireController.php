@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Questionnaire;
 use App\Models\School;
 use App\Models\SchoolDepartment;
 use Illuminate\Http\Request;
@@ -21,11 +22,39 @@ class QuestionnaireController extends Controller
     }
 
     public function store(Request $request){
-        $uid = $request->uid;
-        $school = $request->school;
-        $grade = $request->grade;
-        $gender = $request->gender;
+        try {
+            // バリデーション
+            $validated = $request->validate([
+                'uid' => 'required|string',
+                'school' => 'required|string',
+                'department' => 'required|string',
+                'grade' => 'required|string',
+                'gender' => 'required|string',
+            ]);
 
-        
+            // アンケートデータを保存
+            $questionnaire = Questionnaire::create($validated);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'アンケートが正常に保存されました',
+                'data' => $questionnaire
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'バリデーションエラー',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'サーバーエラーが発生しました',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+
 }
