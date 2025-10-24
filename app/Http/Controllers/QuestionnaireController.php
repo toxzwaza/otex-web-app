@@ -12,13 +12,21 @@ class QuestionnaireController extends Controller
 {
     //
     public function index($uid){
+        // 既に回答済みかどうかをチェック
+        $existingQuestionnaire = Questionnaire::where('uid', $uid)->first();
+        $already_flg = $existingQuestionnaire ? true : false;
+        
         // 方法1: Eager Loading (推奨) - N+1問題を解決
         $schools = School::with(['departments' => function($query) {
             $query->select('name', 'school_id');
         }])->get();
 
-
-        return Inertia::render('Questionnaire/Index', ['uid' => $uid, 'schools' => $schools]);
+        return Inertia::render('Questionnaire/Index', [
+            'uid' => $uid, 
+            'schools' => $schools,
+            'already_flg' => $already_flg,
+            'existing_data' => $existingQuestionnaire // 既存の回答データを追加
+        ]);
     }
 
     public function store(Request $request){
