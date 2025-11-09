@@ -80,4 +80,16 @@ class AdminController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+
+    public function clear(Request $request){
+
+        $questionnaires = Questionnaire::all();
+
+        foreach( $questionnaires as $questionnaire ){
+            $questionnaire->delete();
+        }
+
+        return redirect()->route('admin.dashboard')->with('success', 'アンケートデータが正常に削除されました');
+    }
 }

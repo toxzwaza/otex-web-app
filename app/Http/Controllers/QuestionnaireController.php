@@ -12,9 +12,24 @@ class QuestionnaireController extends Controller
 {
     //
     public function index($uid){
-        // 既に回答済みかどうかをチェック
-        $existingQuestionnaire = Questionnaire::where('uid', $uid)->first();
-        $already_flg = $existingQuestionnaire ? true : false;
+        // UIDでレコードを検索、なければ新規作成（アクセス記録）
+        $questionnaire = Questionnaire::where('uid', $uid)->first();
+        
+        if (!$questionnaire) {
+            // レコードが存在しない場合、新規作成（アクセスのみ記録）
+            $questionnaire = Questionnaire::create([
+                'uid' => $uid,
+                'school' => null,
+                'department' => null,
+                'grade' => null,
+                'gender' => null,
+            ]);
+            $already_flg = false;
+        } else {
+            // 既存レコードがある場合、回答済みかどうかをチェック
+            $already_flg = ($questionnaire->school && $questionnaire->department && 
+                           $questionnaire->grade && $questionnaire->gender) ? true : false;
+        }
         
         // 方法1: Eager Loading (推奨) - N+1問題を解決
         $schools = School::with(['departments' => function($query) {
@@ -25,7 +40,7 @@ class QuestionnaireController extends Controller
             'uid' => $uid, 
             'schools' => $schools,
             'already_flg' => $already_flg,
-            'existing_data' => $existingQuestionnaire // 既存の回答データを追加
+            'existing_data' => $already_flg ? $questionnaire : null // 回答済みの場合のみデータを返す
         ]);
     }
 
@@ -40,12 +55,27 @@ class QuestionnaireController extends Controller
                 'gender' => 'required|string',
             ]);
 
-            // アンケートデータを保存
-            $questionnaire = Questionnaire::create($validated);
+            // UIDをキーにレコードを検索し、更新または新規作成
+            $questionnaire = Questionnaire::where('uid', $validated['uid'])->first();
+            
+            if ($questionnaire) {
+                // 既存レコードを更新
+                $questionnaire->update([
+                    'school' => $validated['school'],
+                    'department' => $validated['department'],
+                    'grade' => $validated['grade'],
+                    'gender' => $validated['gender'],
+                ]);
+                $message = 'アンケートが正常に更新されました';
+            } else {
+                // 何らかの不具合でレコードが見つからない場合、新規作成
+                $questionnaire = Questionnaire::create($validated);
+                $message = 'アンケートが正常に保存されました';
+            }
 
             return response()->json([
                 'status' => true,
-                'message' => 'アンケートが正常に保存されました',
+                'message' => $message,
                 'data' => $questionnaire
             ]);
 
