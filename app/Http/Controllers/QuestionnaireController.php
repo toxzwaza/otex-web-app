@@ -34,7 +34,7 @@ class QuestionnaireController extends Controller
         // 方法1: Eager Loading (推奨) - N+1問題を解決
         $schools = School::with(['departments' => function($query) {
             $query->select('name', 'school_id');
-        }])->get();
+        }])->orderBy('furigana', 'asc')->get();
 
         return Inertia::render('Questionnaire/Index', [
             'uid' => $uid, 
