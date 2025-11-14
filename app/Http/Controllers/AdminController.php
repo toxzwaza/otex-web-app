@@ -81,6 +81,14 @@ class AdminController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    public function show($id)
+    {
+        $questionnaire = Questionnaire::findOrFail($id);
+        
+        return Inertia::render('Admin/Detail', [
+            'questionnaire' => $questionnaire
+        ]);
+    }
 
     public function clear(Request $request){
 
@@ -91,5 +99,44 @@ class AdminController extends Controller
         }
 
         return redirect()->route('admin.dashboard')->with('success', 'アンケートデータが正常に削除されました');
+    }
+
+    public function updateQuestionnaire(Request $request, $id)
+    {
+        try {
+            $questionnaire = Questionnaire::findOrFail($id);
+            
+            // バリデーション
+            $validated = $request->validate([
+                'casting_experience' => 'boolean',
+                'casting_staff' => 'nullable|string|max:255',
+                'sand_experience' => 'boolean', 
+                'sand_staff' => 'nullable|string|max:255',
+                'memo' => 'nullable|string'
+            ]);
+
+            // データ更新
+            $questionnaire->update($validated);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'データが正常に更新されました',
+                'data' => $questionnaire
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'バリデーションエラー',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'サーバーエラーが発生しました',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -14,6 +14,11 @@ class Questionnaire extends Model
         'school',
         'department',
         'grade',
-        'gender'
+        'gender',
+        'casting_experience',
+        'casting_staff',
+        'sand_experience',
+        'sand_staff',
+        'memo'
     ];
 }

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
+import axios from 'axios';
 
 const props = defineProps({
   questionnaires: Array,
@@ -10,13 +11,15 @@ const searchTerm = ref('');
 const selectedSchool = ref('');
 const selectedGrade = ref('');
 const selectedGender = ref('');
+const editingItem = ref(null);
+const editData = reactive({});
 
 // フィルタリング機能
 const filteredQuestionnaires = computed(() => {
   return props.questionnaires.filter(item => {
     const matchesSearch = !searchTerm.value || 
-      item.school.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-      item.department.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+      item.school?.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+      item.department?.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
       item.uid.toLowerCase().includes(searchTerm.value.toLowerCase());
     
     const matchesSchool = !selectedSchool.value || item.school === selectedSchool.value;
@@ -27,17 +30,17 @@ const filteredQuestionnaires = computed(() => {
   });
 });
 
-// ユニークな値を取得
+// ユニークな値を取得（nullを除外）
 const uniqueSchools = computed(() => {
-  return [...new Set(props.questionnaires.map(item => item.school))];
+  return [...new Set(props.questionnaires.map(item => item.school).filter(Boolean))];
 });
 
 const uniqueGrades = computed(() => {
-  return [...new Set(props.questionnaires.map(item => item.grade))];
+  return [...new Set(props.questionnaires.map(item => item.grade).filter(Boolean))];
 });
 
 const uniqueGenders = computed(() => {
-  return [...new Set(props.questionnaires.map(item => item.gender))];
+  return [...new Set(props.questionnaires.map(item => item.gender).filter(Boolean))];
 });
 
 // CSVエクスポート
@@ -51,6 +54,43 @@ const resetFilters = () => {
   selectedSchool.value = '';
   selectedGrade.value = '';
   selectedGender.value = '';
+};
+
+// 編集開始
+const startEdit = (item) => {
+  editingItem.value = item.id;
+  Object.assign(editData, {
+    casting_experience: item.casting_experience || false,
+    casting_staff: item.casting_staff || '',
+    sand_experience: item.sand_experience || false,
+    sand_staff: item.sand_staff || '',
+    memo: item.memo || ''
+  });
+};
+
+// 編集キャンセル
+const cancelEdit = () => {
+  editingItem.value = null;
+  Object.keys(editData).forEach(key => delete editData[key]);
+};
+
+// データ保存
+const saveEdit = async (item) => {
+  try {
+    const response = await axios.put(`/admin/questionnaire/${item.id}`, editData);
+    
+    if (response.data.status) {
+      // 成功時はデータを更新
+      Object.assign(item, editData);
+      cancelEdit();
+      alert('データが正常に更新されました');
+    } else {
+      alert('更新に失敗しました: ' + response.data.message);
+    }
+  } catch (error) {
+    console.error('Update error:', error);
+    alert('更新エラーが発生しました');
+  }
 };
 </script>
 
@@ -131,18 +171,99 @@ const resetFilters = () => {
             <th>学科</th>
             <th>学年</th>
             <th>性別</th>
+            <th>注湯体験</th>
+            <th>注湯対応者</th>
+            <th>砂込め体験</th>
+            <th>砂込め対応者</th>
+            <th>メモ</th>
             <th>回答日時</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in filteredQuestionnaires" :key="item.id">
             <td>{{ item.id }}</td>
             <td class="uid-cell">{{ item.uid }}</td>
-            <td>{{ item.school }}</td>
-            <td>{{ item.department }}</td>
-            <td>{{ item.grade }}</td>
-            <td>{{ item.gender }}</td>
+            <td>{{ item.school || '-' }}</td>
+            <td>{{ item.department || '-' }}</td>
+            <td>{{ item.grade || '-' }}</td>
+            <td>{{ item.gender || '-' }}</td>
+            
+            <!-- 注湯体験 -->
+            <td>
+              <input 
+                v-if="editingItem === item.id"
+                v-model="editData.casting_experience"
+                type="checkbox"
+                class="edit-checkbox"
+              />
+              <span v-else class="status-badge" :class="{ active: item.casting_experience }">
+                {{ item.casting_experience ? '✓' : '×' }}
+              </span>
+            </td>
+            
+            <!-- 注湯対応者 -->
+            <td>
+              <input 
+                v-if="editingItem === item.id"
+                v-model="editData.casting_staff"
+                type="text"
+                class="edit-input"
+                placeholder="対応者名"
+              />
+              <span v-else>{{ item.casting_staff || '-' }}</span>
+            </td>
+            
+            <!-- 砂込め体験 -->
+            <td>
+              <input 
+                v-if="editingItem === item.id"
+                v-model="editData.sand_experience"
+                type="checkbox"
+                class="edit-checkbox"
+              />
+              <span v-else class="status-badge" :class="{ active: item.sand_experience }">
+                {{ item.sand_experience ? '✓' : '×' }}
+              </span>
+            </td>
+            
+            <!-- 砂込め対応者 -->
+            <td>
+              <input 
+                v-if="editingItem === item.id"
+                v-model="editData.sand_staff"
+                type="text"
+                class="edit-input"
+                placeholder="対応者名"
+              />
+              <span v-else>{{ item.sand_staff || '-' }}</span>
+            </td>
+            
+            <!-- メモ -->
+            <td>
+              <textarea 
+                v-if="editingItem === item.id"
+                v-model="editData.memo"
+                class="edit-textarea"
+                placeholder="メモを入力"
+                rows="2"
+              ></textarea>
+              <span v-else class="memo-cell">{{ item.memo || '-' }}</span>
+            </td>
+            
             <td>{{ new Date(item.created_at).toLocaleString('ja-JP') }}</td>
+            
+            <!-- 操作ボタン -->
+            <td class="action-cell">
+              <div v-if="editingItem === item.id" class="action-buttons">
+                <button @click="saveEdit(item)" class="save-btn">保存</button>
+                <button @click="cancelEdit" class="cancel-btn">キャンセル</button>
+              </div>
+              <div v-else class="action-buttons">
+                <a :href="`/admin/questionnaire/${item.id}`" class="detail-btn">詳細</a>
+                <button @click="startEdit(item)" class="edit-btn">編集</button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -373,6 +494,110 @@ const resetFilters = () => {
 
   tr:hover {
     background: #f9fafb;
+  }
+}
+
+// 編集機能のスタイル
+.edit-input, .edit-textarea {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+}
+
+.edit-textarea {
+  resize: vertical;
+  min-height: 40px;
+}
+
+.edit-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #ef4444;
+  color: white;
+  
+  &.active {
+    background: #10b981;
+  }
+}
+
+.memo-cell {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.action-cell {
+  white-space: nowrap;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.edit-btn, .save-btn, .cancel-btn, .detail-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.detail-btn {
+  background: #8b5cf6;
+  color: white;
+  
+  &:hover {
+    background: #7c3aed;
+  }
+}
+
+.edit-btn {
+  background: #3b82f6;
+  color: white;
+  
+  &:hover {
+    background: #2563eb;
+  }
+}
+
+.save-btn {
+  background: #10b981;
+  color: white;
+  
+  &:hover {
+    background: #059669;
+  }
+}
+
+.cancel-btn {
+  background: #6b7280;
+  color: white;
+  
+  &:hover {
+    background: #4b5563;
   }
 }
 
